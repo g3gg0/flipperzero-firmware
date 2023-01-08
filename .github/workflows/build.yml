@@ -71,6 +71,7 @@ jobs:
             mv dist/${TARGET}-*/* artifacts/
           done
           echo "Artifacts:"
+          pwd
           ls artifacts -R
           
       - name: 'Archive artifacts'
@@ -78,7 +79,7 @@ jobs:
         with:
           name: firmware
           path: |
-            dist artifacts/*
+            artifacts
 
       - name: "Check for uncommitted changes"
         run: |
