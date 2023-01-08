@@ -16,7 +16,7 @@ env:
 
 jobs:
   main:
-    runs-on: [self-hosted,FlipperZeroShell]
+    runs-on: ubuntu-latest
     steps:
       - name: 'Decontaminate previous build leftovers'
         run: |
@@ -154,7 +154,7 @@ jobs:
 
   compact:
     if: ${{ !startsWith(github.ref, 'refs/tags') }}
-    runs-on: [self-hosted,FlipperZeroShell]
+    runs-on: ubuntu-latest
     steps:
       - name: 'Decontaminate previous build leftovers'
         run: |
