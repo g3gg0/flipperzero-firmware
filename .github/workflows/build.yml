@@ -71,6 +71,13 @@ jobs:
           for TARGET in ${TARGETS}; do
             mv dist/${TARGET}-*/* artifacts/
           done
+          
+      - name: 'Archive artifacts'
+        uses: actions/upload-artifact@v3
+        with:
+          name: fimrware
+          path: |
+            dist dist/${TARGET}-*/*
 
       - name: "Check for uncommitted changes"
         run: |
