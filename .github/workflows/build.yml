@@ -12,7 +12,7 @@ on:
 env:
   TARGETS: f7
   DEFAULT_TARGET: f7
-  FBT_TOOLCHAIN_PATH: /runner/_work
+  FBT_TOOLCHAIN_PATH: /tmp/runner/_work
 
 jobs:
   main:
