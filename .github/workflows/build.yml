@@ -12,7 +12,7 @@ on:
 env:
   TARGETS: f7
   DEFAULT_TARGET: f7
-  FBT_TOOLCHAIN_PATH: /tmp/runner/_work
+  FBT_TOOLCHAIN_PATH: /home/runner/work
 
 jobs:
   main:
@@ -92,43 +92,6 @@ jobs:
           cp build/f7-firmware-*/firmware.elf.map map_analyser_files/firmware.elf.map
           cp build/f7-firmware-*/firmware.elf map_analyser_files/firmware.elf
           cp ${{ github.event_path }} map_analyser_files/event.json
-
-      - name: 'Upload map analyser files to storage'
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        uses: keithweaver/aws-s3-github-action@v1.0.0
-        with:
-          source: map_analyser_files/
-          destination: "s3://${{ secrets.MAP_REPORT_AWS_BUCKET }}/${{steps.names.outputs.random_hash}}"
-          aws_access_key_id: "${{ secrets.MAP_REPORT_AWS_ACCESS_KEY }}"
-          aws_secret_access_key: "${{ secrets.MAP_REPORT_AWS_SECRET_KEY }}"
-          aws_region: "${{ secrets.MAP_REPORT_AWS_REGION }}"
-          flags: --recursive
-
-      - name: 'Trigger map file reporter'
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          repository: flipperdevices/flipper-map-reporter
-          token: ${{ secrets.REPOSITORY_DISPATCH_TOKEN }}
-          event-type: map-file-analyse
-          client-payload: '{"random_hash": "${{steps.names.outputs.random_hash}}", "event_type": "${{steps.names.outputs.event_type}}"}'
-
-
-      - name: 'Upload artifacts to update server'
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -p ${{ secrets.RSYNC_DEPLOY_PORT }} -H ${{ secrets.RSYNC_DEPLOY_HOST }} > ~/.ssh/known_hosts
-          echo "${{ secrets.RSYNC_DEPLOY_KEY }}" > deploy_key;
-          chmod 600 ./deploy_key;
-          rsync -avzP --delete --mkpath \
-              -e 'ssh -p ${{ secrets.RSYNC_DEPLOY_PORT }} -i ./deploy_key' \
-              artifacts/ ${{ secrets.RSYNC_DEPLOY_USER }}@${{ secrets.RSYNC_DEPLOY_HOST }}:"${{ secrets.RSYNC_DEPLOY_BASE_PATH }}${BRANCH_NAME}/";
-          rm ./deploy_key;
-
-      - name: 'Trigger update server reindex'
-        if: ${{ !github.event.pull_request.head.repo.fork }}
-        run: curl -X POST -F 'key=${{ secrets.REINDEX_KEY }}' ${{ secrets.REINDEX_URL }}
 
       - name: 'Find Previous Comment'
         if: ${{ !github.event.pull_request.head.repo.fork && github.event.pull_request }}
