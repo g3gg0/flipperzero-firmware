@@ -47,9 +47,7 @@ jobs:
       - name: 'Make artifacts directory'
         run: |
           rm -rf artifacts
-          rm -rf map_analyser_files
           mkdir artifacts
-          mkdir map_analyser_files
 
       - name: 'Bundle scripts'
         if: ${{ !github.event.pull_request.head.repo.fork }}
@@ -77,7 +75,7 @@ jobs:
         with:
           name: fimrware
           path: |
-            dist dist/${TARGET}-*/*
+            dist artifacts/
 
       - name: "Check for uncommitted changes"
         run: |
