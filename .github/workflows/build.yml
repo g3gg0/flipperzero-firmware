@@ -67,15 +67,18 @@ jobs:
         run: |
           set -e
           for TARGET in ${TARGETS}; do
+            echo "Copying: ${TARGET}"
             mv dist/${TARGET}-*/* artifacts/
           done
+          echo "Artifacts:"
+          ls artifacts -R
           
       - name: 'Archive artifacts'
         uses: actions/upload-artifact@v3
         with:
-          name: fimrware
+          name: firmware
           path: |
-            dist artifacts/
+            dist artifacts/*
 
       - name: "Check for uncommitted changes"
         run: |
