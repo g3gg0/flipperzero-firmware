@@ -1316,7 +1316,7 @@ bool nfcv_emu_loop(
         float fc_1024 = (4.0f * duration) / (4 * (frame_pos * 4 + 1) + 1);
         /* it should be 1024/fc in 64MHz ticks */
         float fact = fc_1024 / ((1000000.0f * 64.0f * 1024.0f) / NFCV_FC);
-        FURI_LOG_D(TAG, "1024/fc: %f -> %f %%", fc_1024, fact * 100);
+        FURI_LOG_D(TAG, "1024/fc: %f -> %f %%", (double) fc_1024, (double) fact * 100);
 #if 0
         if(fact > 0.99f && fact < 1.01f) {
             static float avg_err = 0.0f;
