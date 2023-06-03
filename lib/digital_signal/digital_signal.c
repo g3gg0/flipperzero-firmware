@@ -252,17 +252,11 @@ static void digital_signal_stop_timer() {
     LL_TIM_DisableUpdateEvent(TIM2);
     LL_TIM_DisableDMAReq_UPDATE(TIM2);
 
-    /* dis/enabling this several times in sequence causes a crash */
-    //furi_hal_bus_disable(FuriHalBusTIM2);
+    furi_hal_bus_disable(FuriHalBusTIM2);
 }
 
 static void digital_signal_setup_timer() {
-    static bool bus_enabled = false;
-
-    if(!bus_enabled) {
-        bus_enabled = true;
-        furi_hal_bus_enable(FuriHalBusTIM2);
-    }
+    furi_hal_bus_enable(FuriHalBusTIM2);
 
     LL_TIM_SetCounterMode(TIM2, LL_TIM_COUNTERMODE_UP);
     LL_TIM_SetClockDivision(TIM2, LL_TIM_CLOCKDIVISION_DIV1);
@@ -564,7 +558,7 @@ bool digital_sequence_send(DigitalSequence* sequence) {
     }
 
     int32_t remainder = 0;
-    bool traded_first = false;
+    uint32_t trade_for_next = 0;
     uint32_t seq_pos_next = 1;
 
     dma_buffer->dma_active = false;
@@ -588,13 +582,10 @@ bool digital_sequence_send(DigitalSequence* sequence) {
         }
 
         for(uint32_t pulse_pos = 0; pulse_pos < sig->internals->reload_reg_entries; pulse_pos++) {
-            if(traded_first) {
-                traded_first = false;
-                continue;
-            }
-
             bool last_pulse = ((pulse_pos + 1) >= sig->internals->reload_reg_entries);
-            uint32_t pulse_length = sig->reload_reg_buff[pulse_pos];
+            uint32_t pulse_length = sig->reload_reg_buff[pulse_pos] + trade_for_next;
+
+            trade_for_next = 0;
 
             /* when we are too late more than half a tick, make the first edge temporarily longer */
             if(remainder >= T_TIM_DIV2) {
@@ -604,41 +595,43 @@ bool digital_sequence_send(DigitalSequence* sequence) {
 
             /* last pulse in current signal and have a next signal? */
             if(last_pulse && sig_next) {
-                /* when a signal ends with the same level as the next signal begins, let the fist signal generate the whole pulse */
-                /* beware, we do not want the level after the last edge, but the last level before that edge */
+                /* when a signal ends with the same level as the next signal begins, let the next signal generate the whole pulse.
+                   beware, we do not want the level after the last edge, but the last level before that edge */
                 bool end_level = sig->start_level ^ ((sig->edge_cnt % 2) == 0);
 
-                /* take from the next, add it to the current if they have the same level */
+                /* if they have the same level, pass the duration to the next pulse(s) */
                 if(end_level == sig_next->start_level) {
-                    pulse_length += sig_next->reload_reg_buff[0];
-                    traded_first = true;
+                    trade_for_next = pulse_length;
                 }
             }
 
-            digital_sequence_queue_pulse(sequence, pulse_length);
+            /* if it was decided, that the next signal's first pulse shall also handle our "length", then do not queue here */
+            if(!trade_for_next) {
+                digital_sequence_queue_pulse(sequence, pulse_length);
 
-            if(!dma_buffer->dma_active) {
-                /* start transmission when buffer was filled enough */
-                bool start_send = sequence->dma_buffer->write_pos >= (RINGBUFFER_SIZE - 2);
+                if(!dma_buffer->dma_active) {
+                    /* start transmission when buffer was filled enough */
+                    bool start_send = sequence->dma_buffer->write_pos >= (RINGBUFFER_SIZE - 2);
 
-                /* or it was the last pulse */
-                if(last_pulse && last_signal) {
-                    start_send = true;
-                }
-
-                /* start transmission */
-                if(start_send) {
-                    digital_sequence_setup_dma(sequence);
-                    digital_signal_setup_timer();
-
-                    /* if the send time is specified, wait till the core timer passed beyond that time */
-                    if(sequence->send_time_active) {
-                        sequence->send_time_active = false;
-                        while(sequence->send_time - DWT->CYCCNT < 0x80000000) {
-                        }
+                    /* or it was the last pulse */
+                    if(last_pulse && last_signal) {
+                        start_send = true;
                     }
-                    digital_signal_start_timer();
-                    dma_buffer->dma_active = true;
+
+                    /* start transmission */
+                    if(start_send) {
+                        digital_sequence_setup_dma(sequence);
+                        digital_signal_setup_timer();
+
+                        /* if the send time is specified, wait till the core timer passed beyond that time */
+                        if(sequence->send_time_active) {
+                            sequence->send_time_active = false;
+                            while(sequence->send_time - DWT->CYCCNT < 0x80000000) {
+                            }
+                        }
+                        digital_signal_start_timer();
+                        dma_buffer->dma_active = true;
+                    }
                 }
             }
         }
